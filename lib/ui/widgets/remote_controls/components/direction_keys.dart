@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:remote/constants/key_codes.dart';
-import 'package:remote/implementations/samsung_tv.dart';
-import 'controller_button.dart';
+import 'package:remote/ui/widgets/remote_controls/components/controller_button.dart';
+import 'package:remote/ui/widgets/remote_controls/tv_actions.dart';
 
 class DirectionKeys extends StatelessWidget {
-  final SamsungTV tv;
-  const DirectionKeys({
-    super.key,
-    required this.tv,
-  });
+  const DirectionKeys({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,124 +13,135 @@ class DirectionKeys extends StatelessWidget {
         children: [
           Align(
             alignment: Alignment.topLeft,
-            child: ControllerButton(
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_HOME);
-              },
-              child: const Text(
-                "SMART",
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white54),
+            child: Semantics(
+              label: 'Smart hub',
+              button: true,
+              child: ControllerButton(
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_HOME),
+                child: const _CornerLabel('SMART'),
               ),
             ),
           ),
           Align(
             alignment: Alignment.topRight,
-            child: ControllerButton(
-              child: const Text(
-                "INPUT",
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white54),
+            child: Semantics(
+              label: 'Input source',
+              button: true,
+              child: ControllerButton(
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_SOURCE),
+                child: const _CornerLabel('INPUT'),
               ),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_SOURCE);
-              },
             ),
           ),
           Align(
             alignment: Alignment.bottomLeft,
-            child: ControllerButton(
-              child: const Text(
-                "BACK",
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white54),
+            child: Semantics(
+              label: 'Back',
+              button: true,
+              child: ControllerButton(
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_RETURN),
+                child: const _CornerLabel('BACK'),
               ),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_RETURN);
-              },
             ),
           ),
           Align(
             alignment: Alignment.bottomRight,
-            child: ControllerButton(
-              child: const Text(
-                "EXIT",
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white54),
+            child: Semantics(
+              label: 'Exit',
+              button: true,
+              child: ControllerButton(
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_EXT41),
+                child: const _CornerLabel('EXIT'),
               ),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_EXT41);
-              },
             ),
           ),
           Align(
-            alignment: Alignment.center,
-            child: ControllerButton(
-              child: const Text(
-                "OK",
-                style: TextStyle(
+            child: Semantics(
+              label: 'OK',
+              button: true,
+              child: ControllerButton(
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_ENTER),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white),
+                    color: Colors.white,
+                  ),
+                ),
               ),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_ENTER);
-              },
             ),
           ),
           Align(
             alignment: const Alignment(0, -0.6),
-            child: ControllerButton(
-              borderRadius: 10,
-              child: const Icon(Icons.arrow_drop_up,
-                  size: 30, color: Colors.white),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_UP);
-              },
+            child: Semantics(
+              label: 'Up',
+              button: true,
+              child: ControllerButton(
+                borderRadius: 10,
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_UP),
+                child: const Icon(Icons.arrow_drop_up,
+                    size: 30, color: Colors.white),
+              ),
             ),
           ),
           Align(
             alignment: const Alignment(0, 0.6),
-            child: ControllerButton(
-              borderRadius: 10,
-              child: const Icon(Icons.arrow_drop_down,
-                  size: 30, color: Colors.white),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_DOWN);
-              },
+            child: Semantics(
+              label: 'Down',
+              button: true,
+              child: ControllerButton(
+                borderRadius: 10,
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_DOWN),
+                child: const Icon(Icons.arrow_drop_down,
+                    size: 30, color: Colors.white),
+              ),
             ),
           ),
           Align(
             alignment: const Alignment(0.6, 0),
-            child: ControllerButton(
-              borderRadius: 10,
-              child:
-                  const Icon(Icons.arrow_right, size: 30, color: Colors.white),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_RIGHT);
-              },
+            child: Semantics(
+              label: 'Right',
+              button: true,
+              child: ControllerButton(
+                borderRadius: 10,
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_RIGHT),
+                child: const Icon(Icons.arrow_right,
+                    size: 30, color: Colors.white),
+              ),
             ),
           ),
           Align(
             alignment: const Alignment(-0.7, 0),
-            child: ControllerButton(
-              borderRadius: 10,
-              child:
-                  const Icon(Icons.arrow_left, size: 30, color: Colors.white),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_LEFT);
-              },
+            child: Semantics(
+              label: 'Left',
+              button: true,
+              child: ControllerButton(
+                borderRadius: 10,
+                onPressed: () => context.sendTvKey(KeyCodes.KEY_LEFT),
+                child: const Icon(Icons.arrow_left,
+                    size: 30, color: Colors.white),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CornerLabel extends StatelessWidget {
+  const _CornerLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+        color: Colors.white54,
       ),
     );
   }

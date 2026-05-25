@@ -10,20 +10,19 @@ extension ConnectionStateExtension on ConnectionState {
   String get displayName {
     switch (this) {
       case ConnectionState.disconnected:
-        return 'Desconectado';
+        return 'Disconnected';
       case ConnectionState.connecting:
-        return 'Conectando';
+        return 'Connecting';
       case ConnectionState.connected:
-        return 'Conectado';
+        return 'Connected';
       case ConnectionState.disconnecting:
-        return 'Desconectando';
+        return 'Disconnecting';
       case ConnectionState.error:
         return 'Error';
     }
   }
-  
+
   bool get isConnected => this == ConnectionState.connected;
   bool get isConnecting => this == ConnectionState.connecting;
   bool get isDisconnected => this == ConnectionState.disconnected;
 }
-

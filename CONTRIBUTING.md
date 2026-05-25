@@ -1,0 +1,101 @@
+# Contributing
+
+Thanks for your interest in improving Smart TV Remote Control. This guide
+covers local setup, tests, code style, commits, and the PR process.
+
+## Setup
+
+Prerequisites:
+
+- Flutter `>= 3.24.0`, Dart `>= 3.5.0`
+- A real Android or iOS device on the same Wi-Fi as a supported TV
+  (emulators rarely work — UPnP / mDNS need real local-network access)
+
+Clone and bootstrap:
+
+```bash
+git clone https://github.com/<your-org>/Smart-TV-Remote-Control.git
+cd Smart-TV-Remote-Control
+flutter pub get
+flutter run
+```
+
+If you are touching the localization files, regenerate the bindings:
+
+```bash
+flutter gen-l10n
+```
+
+## Tests
+
+Run the full suite before opening a PR:
+
+```bash
+flutter test
+```
+
+Bloc tests use `bloc_test` and `mocktail`. When adding a new bloc, add a
+test file under `test/blocs/` with the same shape as the existing ones.
+
+## Code style
+
+- **Lints**: `very_good_analysis` is enforced via `analysis_options.yaml`.
+  Treat warnings as errors.
+- **Format**: run `dart format .` before committing. CI will reject
+  unformatted code.
+- **Static analysis**: `flutter analyze` must pass with zero issues.
+
+Layering rules (do not break these):
+
+- UI talks to **blocs** only.
+- Blocs talk to **repositories** only.
+- Repositories talk to **services**.
+- Services talk to the network / OS.
+
+Do not import a service directly from a widget.
+
+## Commit messages
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/).
+Format:
+
+```
+<type>(<scope>): <short summary>
+```
+
+Common types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`.
+
+Examples:
+
+```
+feat(samsung): persist pairing token across launches
+fix(discovery): handle mDNS responses with missing TXT records
+refactor(blocs): split TvConnectionBloc state into sealed classes
+docs(readme): document Wake-on-LAN troubleshooting
+```
+
+## Pull requests
+
+1. Fork the repo and create a branch off `main`:
+   `git checkout -b feat/my-change`
+2. Make your change. Add or update tests.
+3. Run `dart format .`, `flutter analyze`, and `flutter test` — all must
+   pass cleanly.
+4. Update `CHANGELOG.md` under `## [Unreleased]` describing what changed.
+5. Open a PR with:
+   - A clear description of the problem and the fix
+   - Screenshots or a screen recording for any UI change
+   - The TV model(s) you tested against, if relevant
+6. Address review feedback by pushing additional commits — do not
+   force-push during review.
+
+## Reporting bugs
+
+Please include:
+
+- Phone OS and version
+- TV brand, model, and firmware year
+- Whether discovery, connect, or control is failing
+- Relevant logs from `flutter logs`
+
+Thanks for contributing.

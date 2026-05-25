@@ -1,0 +1,28 @@
+import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:remote/core/repositories/tv_repository.dart';
+import 'package:remote/core/services/known_tvs_storage.dart';
+import 'package:remote/core/services/tv_token_storage.dart';
+import 'package:remote/core/services/wake_on_lan_service.dart';
+import 'package:remote/services/mdns/mdns_discovery_service.dart';
+
+final GetIt sl = GetIt.instance;
+
+Future<void> configureDependencies() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  sl
+    ..registerSingleton<SharedPreferences>(prefs)
+    ..registerLazySingleton<TvTokenStorage>(() => TvTokenStorage(sl()))
+    ..registerLazySingleton<KnownTvsStorage>(() => KnownTvsStorage(sl()))
+    ..registerLazySingleton<WakeOnLanService>(WakeOnLanService.new)
+    ..registerLazySingleton<MdnsDiscoveryService>(MdnsDiscoveryService.new)
+    ..registerLazySingleton<TvRepository>(
+      () => TvRepository(
+        tokenStorage: sl(),
+        knownTvsStorage: sl(),
+        wakeOnLanService: sl(),
+        mdnsDiscoveryService: sl(),
+      ),
+    );
+}

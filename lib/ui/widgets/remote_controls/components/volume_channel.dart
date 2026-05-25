@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:remote/constants/key_codes.dart';
-import 'package:remote/implementations/samsung_tv.dart';
-import 'controller_button.dart';
+import 'package:remote/ui/widgets/remote_controls/components/controller_button.dart';
+import 'package:remote/ui/widgets/remote_controls/tv_actions.dart';
 
 class VolumeChannelControls extends StatelessWidget {
-  final SamsungTV tv;
-  const VolumeChannelControls({
-    super.key, required this.tv,
-  });
+  const VolumeChannelControls({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -18,35 +15,21 @@ class VolumeChannelControls extends StatelessWidget {
           borderRadius: 15,
           child: Column(
             children: [
-              MaterialButton(
-                height: 50,
-                minWidth: 50,
-                shape: const CircleBorder(),
-                child: const Icon(Icons.keyboard_arrow_up,
-                    size: 20, color: Colors.white54),
-                onPressed: () async {
-                   await tv.sendKey(KeyCodes.KEY_VOLUP);
-                },
+              _CircleAction(
+                icon: Icons.keyboard_arrow_up,
+                label: 'Volume up',
+                keyCode: KeyCodes.KEY_VOLUP,
               ),
-              MaterialButton(
-                height: 50,
-                minWidth: 80,
-                shape: const CircleBorder(),
-                child: const Icon(Icons.volume_off,
-                    size: 20, color: Colors.white70),
-                onPressed: () async {
-                   await tv.sendKey(KeyCodes.KEY_MUTE);
-                },
+              _CircleAction(
+                icon: Icons.volume_off,
+                label: 'Mute',
+                keyCode: KeyCodes.KEY_MUTE,
+                width: 80,
               ),
-              MaterialButton(
-                height: 50,
-                minWidth: 50,
-                shape: const CircleBorder(),
-                child: const Icon(Icons.keyboard_arrow_down,
-                    size: 20, color: Colors.white54),
-                onPressed: () async {
-                   await tv.sendKey(KeyCodes.KEY_VOLDOWN);
-                },
+              _CircleAction(
+                icon: Icons.keyboard_arrow_down,
+                label: 'Volume down',
+                keyCode: KeyCodes.KEY_VOLDOWN,
               ),
             ],
           ),
@@ -55,30 +38,28 @@ class VolumeChannelControls extends StatelessWidget {
           children: [
             ControllerButton(
               borderRadius: 15,
-              child: Text(
-                "menu".toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white54),
+              onPressed: () => context.sendTvKey(KeyCodes.KEY_HOME),
+              child: const Text(
+                'MENU',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white54,
+                ),
               ),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_HOME);
-              },
             ),
             const SizedBox(height: 35),
             ControllerButton(
               borderRadius: 15,
-              child: Text(
-                "more".toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white54),
+              onPressed: () => context.sendTvKey(KeyCodes.KEY_MORE),
+              child: const Text(
+                'MORE',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white54,
+                ),
               ),
-              onPressed: () async {
-                 await tv.sendKey(KeyCodes.KEY_MORE);
-              },
             ),
           ],
         ),
@@ -86,35 +67,59 @@ class VolumeChannelControls extends StatelessWidget {
           borderRadius: 15,
           child: Column(
             children: [
-              MaterialButton(
+              _CircleAction(
+                icon: Icons.keyboard_arrow_up,
+                label: 'Channel up',
+                keyCode: KeyCodes.KEY_CHUP,
                 height: 40,
-                minWidth: 40,
-                shape: const CircleBorder(),
-                child: const Icon(Icons.keyboard_arrow_up,
-                    size: 20, color: Colors.white54),
-                onPressed: () async {
-                   await tv.sendKey(KeyCodes.KEY_CHUP);
-                },
+                width: 40,
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 14),
                 child: Text('P',
                     style: TextStyle(fontSize: 15, color: Colors.white70)),
               ),
-              MaterialButton(
-                height: 50,
-                minWidth: 80,
-                shape: const CircleBorder(),
-                child: const Icon(Icons.keyboard_arrow_down,
-                    size: 20, color: Colors.white54),
-                onPressed: () async {
-                   await tv.sendKey(KeyCodes.KEY_CHDOWN);
-                },
+              _CircleAction(
+                icon: Icons.keyboard_arrow_down,
+                label: 'Channel down',
+                keyCode: KeyCodes.KEY_CHDOWN,
+                width: 80,
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CircleAction extends StatelessWidget {
+  const _CircleAction({
+    required this.icon,
+    required this.label,
+    required this.keyCode,
+    this.width = 50,
+    this.height = 50,
+  });
+
+  final IconData icon;
+  final String label;
+  final KeyCodes keyCode;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: label,
+      button: true,
+      child: MaterialButton(
+        height: height,
+        minWidth: width,
+        shape: const CircleBorder(),
+        onPressed: () => context.sendTvKey(keyCode),
+        child: Icon(icon, size: 20, color: Colors.white54),
+      ),
     );
   }
 }

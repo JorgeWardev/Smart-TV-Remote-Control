@@ -1,27 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:remote/blocs/connectivity/connectivity_bloc.dart';
+import 'package:remote/blocs/device_discovery/device_discovery_bloc.dart';
+import 'package:remote/blocs/tv_connection/tv_connection_bloc.dart';
+import 'package:remote/core/repositories/tv_repository.dart';
+import 'package:remote/di/service_locator.dart';
+import 'package:remote/l10n/app_localizations.dart';
 import 'package:remote/ui/screens/device_selection/device_selection_screen.dart';
+import 'package:remote/ui/theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations(
-    [ DeviceOrientation.portraitUp, DeviceOrientation.portraitDown  ]
-  );
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  return runApp(const RemoteController());
+  await SystemChrome.setPreferredOrientations(const [
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  await configureDependencies();
+
+  runApp(const RemoteApp());
 }
 
-class RemoteController extends StatelessWidget {
-  const RemoteController({super.key});
+class RemoteApp extends StatelessWidget {
+  const RemoteApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Remote',
-      home: const Scaffold(
-        backgroundColor: Color(0XFF2e2e2e),
-        body: DeviceSelectionScreen(),
+    final repository = sl<TvRepository>();
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => ConnectivityCubit()),
+        BlocProvider(
+          create: (_) => TvConnectionBloc(repository: repository),
+        ),
+        BlocProvider(
+          create: (_) => DeviceDiscoveryBloc(repository: repository)
+            ..add(const DiscoveryStarted()),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Smart TV Remote',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark(),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const DeviceSelectionScreen(),
       ),
     );
   }

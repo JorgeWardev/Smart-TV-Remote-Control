@@ -1,0 +1,67 @@
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.2.0] - 2026-05-25
+
+Major rewrite. The app moves from a single-screen prototype to a layered
+Flutter architecture with real protocol support for two TV brands.
+
+### Added
+- **State management & DI**: introduced `flutter_bloc` + `get_it` with a
+  repository pattern. New blocs under `lib/blocs/`:
+  - `TvConnectionBloc` — owns the active TV session
+  - `DeviceDiscoveryBloc` — drives the network scan
+  - `ConnectivityCubit` — exposes real network state
+- **Samsung Tizen WebSocket v2** client in
+  `lib/services/samsung/samsung_tv_service.dart` with `wss://` transport
+  and native `pingInterval`-based heartbeat.
+- **LG WebOS** client in `lib/services/lg/lg_tv_service.dart` (replaces
+  the prior stub) with client-key pairing.
+- **mDNS discovery** (`lib/services/mdns/mdns_discovery_service.dart`)
+  running in parallel with UPnP.
+- **Samsung token persistence** via `TvTokenStorage` — the on-TV
+  "Allow" popup now appears only on the first connect.
+- **Known-TV memory** via `KnownTvsStorage` with auto-connect to the
+  last used set on launch.
+- **Wake-on-LAN** fallback: refused connections trigger a magic packet
+  and one retry.
+- **Manual IP entry** dialog as a discovery fallback.
+- **Real connectivity** via `connectivity_plus` (replaces DNS polling).
+- **i18n scaffold** with ARB files in `lib/l10n/` for English, Spanish,
+  and Arabic.
+- **Accessibility**: haptic feedback and `Semantics` labels on every
+  remote button.
+- **Material 3 dark theme**.
+
+### Changed
+- Discovery is no longer Samsung-only; UPnP and mDNS run in parallel
+  and feed a unified device list.
+- TV control is now brand-agnostic at the repository layer; UI does
+  not know whether it is talking to Samsung or LG.
+
+### Removed
+- Manual 5 s / 500 ms polling timers used for the previous heartbeat.
+- DNS-poll-based "is the internet up" check.
+- Hard-coded Samsung-only assumptions in the UI layer.
+
+### Fixed
+- Reconnect loops after the TV slept (now handled by WoL + retry).
+- "Allow" popup re-appearing on every connect (token is now persisted).
+
+## [0.1.0] - 2025-11-01
+
+### Added
+- Initial release.
+- Samsung TV discovery via UPnP.
+- Basic on-screen remote (power, volume, channel, D-pad).
+- Single-screen Flutter UI.
+
+[Unreleased]: https://github.com/your-org/Smart-TV-Remote-Control/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/your-org/Smart-TV-Remote-Control/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/your-org/Smart-TV-Remote-Control/releases/tag/v0.1.0
