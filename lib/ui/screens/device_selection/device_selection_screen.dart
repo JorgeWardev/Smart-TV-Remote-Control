@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:remote/implementations/samsung_tv.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:remote/blocs/connectivity/connectivity_bloc.dart';
+import 'package:remote/blocs/device_discovery/device_discovery_bloc.dart';
+import 'package:remote/blocs/tv_connection/tv_connection_bloc.dart';
+import 'package:remote/core/models/tv_device.dart';
+import 'package:remote/ui/screens/device_selection/widgets/device_list_item.dart';
+import 'package:remote/ui/screens/device_selection/widgets/manual_ip_dialog.dart';
 import 'package:remote/ui/screens/remote_control/remote_screen.dart';
-import 'dart:async';
-import 'dart:io';
 
 class DeviceSelectionScreen extends StatefulWidget {
   const DeviceSelectionScreen({super.key});
@@ -12,317 +16,252 @@ class DeviceSelectionScreen extends StatefulWidget {
 }
 
 class _DeviceSelectionScreenState extends State<DeviceSelectionScreen> {
-  List<SamsungTV> _availableDevices = [];
-  bool _isScanning = false;
-  String _scanStatus = '';
-  Timer? _wifiCheckTimer;
-  bool _wifiConnected = true;
+  bool _autoConnectTried = false;
 
   @override
-  void initState() {
-    super.initState();
-    _startScanning();
-    _startWifiMonitoring();
+  Widget build(BuildContext context) {
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<TvConnectionBloc, TvConnectionState>(
+          listenWhen: (prev, next) =>
+              prev.status != next.status && next.isConnected,
+          listener: (context, _) {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const RemoteScreen()),
+            );
+          },
+        ),
+        BlocListener<DeviceDiscoveryBloc, DeviceDiscoveryState>(
+          listenWhen: (prev, next) =>
+              !_autoConnectTried &&
+              next.lastUsed != null &&
+              (next.status == DiscoveryStatus.success ||
+                  next.status == DiscoveryStatus.empty),
+          listener: (context, state) {
+            _autoConnectTried = true;
+            final last = state.lastUsed;
+            if (last == null) return;
+            final conn = context.read<TvConnectionBloc>();
+            if (conn.state.status == TvConnectionStatus.idle) {
+              conn.add(TvConnectRequested(last));
+            }
+          },
+        ),
+      ],
+      child: const _DeviceSelectionView(),
+    );
   }
+}
 
-  @override
-  void dispose() {
-    _wifiCheckTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startWifiMonitoring() {
-    _wifiCheckTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      _checkWifiConnection();
-    });
-  }
-
-  Future<void> _checkWifiConnection() async {
-    try {
-      final result = await InternetAddress.lookup('google.com');
-      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-        if (!_wifiConnected) {
-          setState(() {
-            _wifiConnected = true;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('WiFi reconectado'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          _startScanning(); // Reiniciar escaneo
-        }
-      }
-    } catch (e) {
-      if (_wifiConnected) {
-        setState(() {
-          _wifiConnected = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('WiFi desconectado - Verifica tu conexión'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _startScanning() async {
-    setState(() {
-      _isScanning = true;
-      _scanStatus = 'Buscando dispositivos Samsung...';
-      _availableDevices.clear();
-    });
-
-    try {
-      final devices = await SamsungTV.discoverAll();
-      setState(() {
-        _availableDevices = devices;
-        _isScanning = false;
-        _scanStatus = devices.isEmpty 
-            ? 'No se encontraron dispositivos' 
-            : 'Se encontraron ${devices.length} dispositivo(s)';
-      });
-    } catch (e) {
-      setState(() {
-        _isScanning = false;
-        _scanStatus = 'Error al buscar dispositivos';
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'Reintentar',
-              textColor: Colors.white,
-              onPressed: _startScanning,
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _connectToDevice(SamsungTV device) async {
-    try {
-      await device.connect();
-      
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RemoteScreen(selectedDevice: device),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al conectar: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
+class _DeviceSelectionView extends StatelessWidget {
+  const _DeviceSelectionView();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text(
-          'Seleccionar Dispositivo',
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-        elevation: 0,
+        title: const Text('Select Device'),
+        actions: [
+          IconButton(
+            tooltip: 'Add manually',
+            icon: const Icon(Icons.add),
+            onPressed: () => _onAddManually(context),
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Status indicator
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[700]!),
-              ),
-              child: Row(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: BlocBuilder<ConnectivityCubit, ConnectivityStateView>(
+            builder: (context, conn) {
+              if (!conn.hasLan) {
+                return const _WifiOffState();
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    _isScanning ? Icons.search : Icons.tv,
-                    color: _isScanning ? Colors.blue : Colors.green,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
+                  const _StatusHeader(),
+                  const SizedBox(height: 24),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _isScanning ? 'Escaneando red...' : 'Dispositivos encontrados',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _scanStatus,
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+                    child: BlocBuilder<DeviceDiscoveryBloc,
+                        DeviceDiscoveryState>(
+                      builder: (_, state) => _DeviceList(state: state),
                     ),
                   ),
-                  if (_isScanning)
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Device list
-            Expanded(
-              child: !_wifiConnected
-                  ? _buildWifiOffState()
-                  : _isScanning
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Buscando dispositivos Samsung...',
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            ],
+                  const SizedBox(height: 16),
+                  BlocBuilder<DeviceDiscoveryBloc, DeviceDiscoveryState>(
+                    builder: (context, state) {
+                      final scanning =
+                          state.status == DiscoveryStatus.scanning;
+                      return ElevatedButton.icon(
+                        onPressed: scanning
+                            ? null
+                            : () => context
+                                .read<DeviceDiscoveryBloc>()
+                                .add(const DiscoveryRefreshRequested()),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Scan again'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        )
-                      : _availableDevices.isEmpty
-                          ? _buildEmptyState()
-                          : ListView.builder(
-                              itemCount: _availableDevices.length,
-                              itemBuilder: (context, index) {
-                                final device = _availableDevices[index];
-                                return DeviceListItem(
-                                  device: device,
-                                  onTap: () => _connectToDevice(device),
-                                );
-                              },
-                            ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Refresh button
-            ElevatedButton.icon(
-              onPressed: (!_wifiConnected || _isScanning) ? null : _startScanning,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Buscar de nuevo'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildWifiOffState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Future<void> _onAddManually(BuildContext context) async {
+    final result = await ManualIpDialog.show(context);
+    if (result == null) return;
+    if (!context.mounted) return;
+    context
+        .read<DeviceDiscoveryBloc>()
+        .add(ManualDeviceAdded(host: result.host, name: result.name));
+  }
+}
+
+class _StatusHeader extends StatelessWidget {
+  const _StatusHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<DeviceDiscoveryBloc>().state;
+    final scanning = state.status == DiscoveryStatus.scanning;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[700]!),
+      ),
+      child: Row(
         children: [
           Icon(
-            Icons.wifi_off,
-            size: 80,
-            color: Colors.red,
+            scanning ? Icons.search : Icons.tv,
+            color: scanning ? Colors.blue : Colors.green,
+            size: 24,
           ),
-          SizedBox(height: 24),
-          Text(
-            'WiFi Desconectado',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  scanning ? 'Scanning network…' : 'Devices found',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _subtitle(state),
+                  style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                ),
+              ],
             ),
           ),
-          SizedBox(height: 16),
-          Text(
-            'Por favor, conecta tu dispositivo a una red WiFi para buscar televisores Samsung',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
+          if (scanning)
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+              ),
             ),
-          ),
-          SizedBox(height: 24),
-          Icon(
-            Icons.wifi,
-            size: 48,
-            color: Colors.white38,
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Activa WiFi y vuelve a intentar',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 14,
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  String _subtitle(DeviceDiscoveryState state) {
+    switch (state.status) {
+      case DiscoveryStatus.scanning:
+        return 'Looking for Samsung TVs…';
+      case DiscoveryStatus.success:
+        return 'Found ${state.devices.length} device(s)';
+      case DiscoveryStatus.empty:
+        return 'No devices found';
+      case DiscoveryStatus.error:
+        return state.errorMessage ?? 'Discovery failed';
+      case DiscoveryStatus.idle:
+        return '';
+    }
+  }
+}
+
+class _DeviceList extends StatelessWidget {
+  const _DeviceList({required this.state});
+  final DeviceDiscoveryState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.status == DiscoveryStatus.scanning && state.devices.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Looking for Samsung TVs…',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.devices.isEmpty) {
+      return const _EmptyState();
+    }
+
+    return ListView.builder(
+      itemCount: state.devices.length,
+      itemBuilder: (context, index) {
+        final device = state.devices[index];
+        return DeviceListItem(
+          device: device,
+          onTap: () => _onTapDevice(context, device),
+        );
+      },
+    );
+  }
+
+  void _onTapDevice(BuildContext context, TVDevice device) {
+    context.read<TvConnectionBloc>().add(TvConnectRequested(device));
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.tv_off,
-            size: 64,
-            color: Colors.grey[600],
-          ),
+          Icon(Icons.tv_off, size: 64, color: Colors.grey[600]),
           const SizedBox(height: 16),
           Text(
-            'No se encontraron dispositivos',
+            'No devices found',
             style: TextStyle(
               color: Colors.grey[400],
               fontSize: 18,
@@ -331,13 +270,9 @@ class _DeviceSelectionScreenState extends State<DeviceSelectionScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Verifica que tu TV Samsung esté encendida\n'
-            'y conectada a la misma red WiFi',
+            'Make sure your TV is powered on\nand on the same Wi-Fi network',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
           ),
         ],
       ),
@@ -345,72 +280,35 @@ class _DeviceSelectionScreenState extends State<DeviceSelectionScreen> {
   }
 }
 
-class DeviceListItem extends StatelessWidget {
-  final SamsungTV device;
-  final VoidCallback onTap;
-
-  const DeviceListItem({
-    super.key,
-    required this.device,
-    required this.onTap,
-  });
+class _WifiOffState extends StatelessWidget {
+  const _WifiOffState();
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.grey[900],
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[700]!),
-      ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.blue..withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(
-            Icons.tv,
-            color: Colors.blue,
-            size: 24,
-          ),
-        ),
-        title: Text(
-          device.deviceName ?? 'TV Samsung',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'IP: ${device.host ?? 'Desconocida'}',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 14,
-              ),
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.wifi_off, size: 80, color: Colors.red),
+          SizedBox(height: 24),
+          Text(
+            'No Wi-Fi connection',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
             ),
-            if (device.mac != null)
-              Text(
-                'MAC: ${device.mac}',
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 12,
-                ),
-              ),
-          ],
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          color: Colors.grey,
-          size: 16,
-        ),
-        onTap: onTap,
+          ),
+          SizedBox(height: 16),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Connect to a Wi-Fi network so the app can talk to your TV.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+          ),
+        ],
       ),
     );
   }

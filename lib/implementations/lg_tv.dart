@@ -1,88 +1,101 @@
-import 'dart:developer';
 import 'package:remote/constants/key_codes.dart';
+import 'package:remote/core/interfaces/tv_interface.dart';
 import 'package:remote/core/models/connection_state.dart';
 import 'package:remote/core/models/disconnection_type.dart';
-import 'package:remote/core/interfaces/tv_interface.dart';
+import 'package:remote/services/lg/lg_tv_service.dart';
 
-/// LG TV model implementation
+/// Maps Samsung-style [KeyCodes] (the shared interface) to LG WebOS commands.
+/// Not every key has a one-to-one mapping; unmapped keys are no-ops.
 class LGTV implements TVInterface {
-  final String? host;
-  final String? mac;
-  final String? deviceName;
-  final String? modelName;
-  bool _isConnected = false;
-
   LGTV({
-    this.host,
-    this.mac,
-    this.deviceName,
-    this.modelName,
-  });
+    required String host,
+    String? mac,
+    String? deviceName,
+    String? modelName,
+    String? clientKey,
+  })  : _service = LgTvService(host: host, clientKey: clientKey),
+        _host = host,
+        _mac = mac,
+        _deviceName = deviceName,
+        _modelName = modelName;
+
+  final LgTvService _service;
+  final String _host;
+  final String? _mac;
+  final String? _deviceName;
+  final String? _modelName;
 
   @override
-  bool get isConnected => _isConnected;
-  
+  String? get host => _host;
   @override
-  ConnectionState get connectionState => _isConnected 
-      ? ConnectionState.connected 
+  String? get mac => _mac;
+  @override
+  String? get deviceName => _deviceName;
+  @override
+  String? get modelName => _modelName;
+
+  @override
+  bool get isConnected => _service.isConnected;
+
+  @override
+  ConnectionState get connectionState => _service.isConnected
+      ? ConnectionState.connected
       : ConnectionState.disconnected;
 
+  String? get clientKey => _service.clientKey;
+
   @override
-  Future<void> connect({String appName = 'DartLGTVDriver'}) async {
-    // TODO: Implement LG TV connection logic
-    // This would use LG's specific protocol (WebOS)
-    log('Connecting to LG TV at $host...');
-    _isConnected = true;
+  void setOnDisconnectedCallback(void Function(DisconnectionType) callback) {
+    _service.onDisconnected = callback;
   }
 
   @override
-  void disconnect() {
-    log('Disconnecting from LG TV...');
-    _isConnected = false;
+  void setOnConnectionStateChangedCallback(
+    void Function(ConnectionState) callback,
+  ) {
+    // Bloc layer derives state — no callback required.
+  }
+
+  void setOnClientKeyReceivedCallback(void Function(String key) callback) {
+    _service.onClientKeyReceived = callback;
+  }
+
+  @override
+  Future<void> connect({String appName = 'Smart TV Remote'}) =>
+      _service.connect();
+
+  @override
+  void disconnect() => _service.disconnect();
+
+  @override
+  Future<void> ensureConnection() async {
+    if (!_service.isConnected) await _service.connect();
   }
 
   @override
   Future<void> sendKey(KeyCodes key) async {
-    if (!_isConnected) {
-      throw Exception('Not connected to LG TV');
+    await ensureConnection();
+    switch (key) {
+      case KeyCodes.KEY_POWER:
+        await _service.power();
+      case KeyCodes.KEY_VOLUP:
+        await _service.volumeUp();
+      case KeyCodes.KEY_VOLDOWN:
+        await _service.volumeDown();
+      case KeyCodes.KEY_MUTE:
+        await _service.mute(true);
+      case KeyCodes.KEY_CHUP:
+        await _service.channelUp();
+      case KeyCodes.KEY_CHDOWN:
+        await _service.channelDown();
+      case KeyCodes.KEY_HOME:
+        await _service.sendUri('ssap://system.launcher/launch',
+            payload: {'id': 'com.webos.app.home'});
+      case _:
+        // Unsupported key for LG path right now; ignored silently.
+        break;
     }
-    
-    // TODO: Implement LG TV key sending logic
-    // This would use LG's specific API
-    log('Sending key ${key.toString()} to LG TV');
   }
 
-  bool get connectionStatus => _isConnected;
-
-  @override
-  Future<void> ensureConnection() async {
-    if (!_isConnected) {
-      await connect();
-    }
-  }
-
-  @override
-  void setOnDisconnectedCallback(Function(DisconnectionType) callback) {
-    // TODO: Implement LG TV disconnection callback
-  }
-  
-  @override
-  void setOnConnectionStateChangedCallback(Function(ConnectionState) callback) {
-    // TODO: Implement LG TV connection state callback
-  }
-
-  // LG-specific methods
-  Future<void> launchApp(String appId) async {
-    if (!_isConnected) {
-      throw Exception('Not connected to LG TV');
-    }
-    log('Launching app $appId on LG TV');
-  }
-
-  Future<void> setVolume(int volume) async {
-    if (!_isConnected) {
-      throw Exception('Not connected to LG TV');
-    }
-    log('Setting volume to $volume on LG TV');
-  }
+  Future<void> launchApp(String appId) => _service.launchApp(appId);
 }

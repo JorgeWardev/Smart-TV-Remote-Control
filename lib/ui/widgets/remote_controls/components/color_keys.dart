@@ -1,62 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:remote/constants/key_codes.dart';
-import 'package:remote/implementations/samsung_tv.dart';
-import 'controller_button.dart';
+import 'package:remote/ui/widgets/remote_controls/components/controller_button.dart';
+import 'package:remote/ui/widgets/remote_controls/tv_actions.dart';
 
 class ColorKeys extends StatelessWidget {
-  final SamsungTV tv;
-
-  const ColorKeys({
-    super.key,
-    required this.tv,
-  });
+  const ColorKeys({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        SizedBox(
-          width: 30,
-          height: 30,
-          child: ControllerButton(
-            color: Colors.red,
-            onPressed: () async {
-              await tv.sendKey(KeyCodes.KEY_RED);
-            },
-          ),
-        ),
-        SizedBox(
-          width: 30,
-          height: 30,
-          child: ControllerButton(
-            color: Colors.green,
-            onPressed: () async {
-              await tv.sendKey(KeyCodes.KEY_GREEN);
-            },
-          ),
-        ),
-        SizedBox(
-          width: 30,
-          height: 30,
-          child: ControllerButton(
-            color: Colors.yellow,
-            onPressed: () async {
-              await tv.sendKey(KeyCodes.KEY_YELLOW);
-            },
-          ),
-        ),
-        SizedBox(
-          height: 30,
-          width: 30,
-          child: ControllerButton(
-            color: Colors.blue,
-            onPressed: () async {
-              await tv.sendKey(KeyCodes.KEY_CYAN);
-            },
-          ),
-        ),
+      children: const [
+        _ColorButton(color: Colors.red, label: 'Red', keyCode: KeyCodes.KEY_RED),
+        _ColorButton(color: Colors.green, label: 'Green', keyCode: KeyCodes.KEY_GREEN),
+        _ColorButton(color: Colors.yellow, label: 'Yellow', keyCode: KeyCodes.KEY_YELLOW),
+        _ColorButton(color: Colors.blue, label: 'Blue', keyCode: KeyCodes.KEY_CYAN),
       ],
+    );
+  }
+}
+
+class _ColorButton extends StatelessWidget {
+  const _ColorButton({
+    required this.color,
+    required this.label,
+    required this.keyCode,
+  });
+
+  final Color color;
+  final String label;
+  final KeyCodes keyCode;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: Semantics(
+        label: '$label button',
+        button: true,
+        child: ControllerButton(
+          color: color,
+          onPressed: () => context.sendTvKey(keyCode),
+        ),
+      ),
     );
   }
 }

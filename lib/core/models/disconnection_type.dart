@@ -11,20 +11,20 @@ extension DisconnectionTypeExtension on DisconnectionType {
   String get displayName {
     switch (this) {
       case DisconnectionType.wifiDisconnected:
-        return 'WiFi Desconectado';
+        return 'Wi-Fi disconnected';
       case DisconnectionType.tvPowerOff:
-        return 'TV Apagado';
+        return 'TV powered off';
       case DisconnectionType.unknown:
-        return 'Desconexión Desconocida';
+        return 'Unknown';
       case DisconnectionType.userInitiated:
-        return 'Desconexión Manual';
+        return 'Disconnected by user';
       case DisconnectionType.networkError:
-        return 'Error de Red';
+        return 'Network error';
       case DisconnectionType.authenticationFailed:
-        return 'Error de Autenticación';
+        return 'Authentication failed';
     }
   }
-  
+
   bool get isRecoverable {
     switch (this) {
       case DisconnectionType.wifiDisconnected:
@@ -38,4 +38,3 @@ extension DisconnectionTypeExtension on DisconnectionType {
     }
   }
 }
-

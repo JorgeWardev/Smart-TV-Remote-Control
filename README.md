@@ -1,51 +1,149 @@
-# 📱 Smart TV Remote Control
+# Smart TV Remote Control
 
-This app allows you to control your Smart TV from your mobile device. Connect seamlessly and enjoy the convenience of controlling your TV without the need for a physical remote.
+> Universal Flutter remote for Samsung Tizen and LG WebOS TVs — discovery, control, and reconnect without the original remote.
+
+<!-- Status badges -->
+![CI](https://img.shields.io/badge/CI-pending-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Flutter](https://img.shields.io/badge/Flutter-%3E%3D3.24-02569B?logo=flutter)
+![Version](https://img.shields.io/badge/version-0.2.0-brightgreen)
+
+---
+
+## Screenshots
+
+| Device picker | Remote | Manual IP dialog |
+| :---: | :---: | :---: |
+| _screenshot coming soon_ | _screenshot coming soon_ | _screenshot coming soon_ |
+
+---
 
 ## Features
 
-- **Device Discovery**: Automatically finds your Samsung Smart TV on the same network.
-- **Remote Control**: Navigate, select, and control your TV with your mobile device.
-- **User-Friendly Interface**: Easy to use interface that mimics your TV remote.
+### Discovery
+- Parallel UPnP and mDNS network scan
+- Manual IP entry as a fallback when the TV refuses to broadcast
+- Known-TV memory: previously paired sets are remembered and auto-connected on next launch
 
-## Getting Started
+### Connectivity
+- Real network state via `connectivity_plus` (no DNS polling)
+- Native WebSocket `pingInterval`-based heartbeat (no manual 500 ms / 5 s timer loops)
+- Wake-on-LAN: when a known TV refuses the connection, the app sends a magic packet and retries once
+- Samsung pairing token persisted locally — the on-TV "Allow" popup only appears the first time
 
-To get started, simply download the app and ensure your mobile device is connected to the same Wi-Fi network as your Samsung Smart TV. Open the app, and it will automatically search for available devices. Select your TV from the list, and you will be taken to the remote control screen.
+### Brands
+- **Samsung Tizen** — real WebSocket v2 (`wss://`) implementation in `lib/services/samsung/samsung_tv_service.dart`
+- **LG WebOS** — full client in `lib/services/lg/lg_tv_service.dart` (replaces the previous stub)
+- **Other brands** — manual IP + generic key codes
 
-### 1. Device Discovery
+### UX
+- Material 3 dark theme
+- Haptic feedback on every key press
+- `Semantics` labels on every button (screen-reader friendly)
+- Localized: English, Spanish, Arabic (ARB files under `lib/l10n/`)
 
-```mermaid
-flowchart TD
-    A[User opens app] --> B[DeviceSelectionScreen]
-    B --> C[Starts UPnP Discovery]
-    C --> D[Searches for Samsung devices]
-    D --> E{Devices found?}
-    E --|Yes| F[Shows TV list]
-    E --|No| G[Shows "Not found" message]
-    F --> H[User selects TV]
-    H --> I[Connects to device]
-    I --> J[Navigates to RemoteScreen]
+---
+
+## Supported TVs
+
+| Brand | Models | Protocol | Notes |
+| --- | --- | --- | --- |
+| Samsung | 2016+ Tizen | WebSocket v2 (`wss://<ip>:8002`) | Token saved after first "Allow" |
+| LG | WebOS 3.0+ | WebSocket (`ws://<ip>:3000`) | Client-key pairing persisted |
+| Other | Any networked TV | Manual IP + generic codes | Best-effort, no discovery |
+
+---
+
+## Quickstart
+
+```bash
+git clone https://github.com/<your-org>/Smart-TV-Remote-Control.git
+cd Smart-TV-Remote-Control
+flutter pub get
+flutter run
 ```
 
-### 2. Remote Control
+Requirements:
 
-Once connected, you can use your mobile device as a remote control. The remote control interface includes all the essential buttons like power, volume, channel navigation, and directional pad. 
+- Flutter `>= 3.24.0`, Dart `>= 3.5.0`
+- Phone and TV must be on the same Wi-Fi / VLAN
+- On Android 13+ grant the **Local Network** / nearby-devices permission when prompted
 
-### 3. Troubleshooting
+---
 
-- **TV Not Found**: Ensure that your TV is turned on and connected to the same Wi-Fi network as your mobile device.
-- **Connection Issues**: Restart the app and try to reconnect. If the problem persists, restart your TV and mobile device.
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│  UI  (screens, widgets)                             │
+│   - DeviceSelectionScreen                           │
+│   - RemoteScreen                                    │
+│   - ManualIpDialog                                  │
+└───────────────▲─────────────────────────────────────┘
+                │ BlocBuilder / BlocListener
+┌───────────────┴─────────────────────────────────────┐
+│  Bloc layer   (lib/blocs/)                          │
+│   - TvConnectionBloc                                │
+│   - DeviceDiscoveryBloc                             │
+│   - ConnectivityCubit                               │
+└───────────────▲─────────────────────────────────────┘
+                │ calls
+┌───────────────┴─────────────────────────────────────┐
+│  Repository layer                                   │
+│   - TvRepository       (brand-agnostic facade)      │
+│   - DiscoveryRepository                             │
+│   - KnownTvsStorage / TvTokenStorage                │
+└───────────────▲─────────────────────────────────────┘
+                │ delegates to
+┌───────────────┴─────────────────────────────────────┐
+│  Service layer  (lib/services/)                     │
+│   - samsung/samsung_tv_service.dart   (WSS v2)      │
+│   - lg/lg_tv_service.dart             (WebOS)       │
+│   - mdns/mdns_discovery_service.dart                │
+│   - upnp/upnp_discovery_service.dart                │
+│   - wol/wake_on_lan_service.dart                    │
+└───────────────▲─────────────────────────────────────┘
+                │ TCP / UDP / WebSocket
+┌───────────────┴─────────────────────────────────────┐
+│  TV  (Samsung Tizen / LG WebOS / other)             │
+└─────────────────────────────────────────────────────┘
+```
+
+DI is wired with `get_it` in `lib/di/service_locator.dart`. Blocs depend on repositories; repositories depend on services. UI never touches a service directly.
+
+---
+
+## Troubleshooting
+
+**TV not found**
+- Confirm the phone and TV share the same Wi-Fi SSID and are not on isolated guest / IoT VLANs.
+- On Android 13+, accept the local-network permission prompt — without it mDNS and UPnP both fail silently.
+- Try **Add manually by IP** from the device picker. The TV's IP is usually under *Settings → Network → Status*.
+
+**"Allow" popup never appears on Samsung**
+- The TV may already have your token cached but blocked it. On the TV: *Settings → General → External Device Manager → Device Connection Manager → Access Notification* → set to **First time only**, then delete this phone from *Device List* and reconnect.
+- Clear app data to drop the stored token and force a fresh handshake.
+
+**Won't reconnect after the TV sleeps**
+- This is what Wake-on-LAN is for. Open *Settings → General → Network → Expert Settings* on the TV and enable **Power On with Mobile**. The app stores the MAC on first connection and will fire a magic packet on the next attempt.
+- If WoL still fails, the TV is likely on a different subnet from your phone — magic packets do not cross routers.
+
+---
+
+## Roadmap / Known limitations
+
+- Hardware volume-button capture (Android `MediaSession` / iOS `MPRemoteCommandCenter`) — not yet wired
+- App launcher (Netflix, YouTube, Disney+ deep links) — protocol supports it, UI pending
+- Swipe trackpad for cursor-style WebOS navigation — planned
+- Sony Bravia (IRCC-IP) and Roku (ECP) — not implemented
+- iOS background reconnect is best-effort; system may suspend the socket
+
+---
 
 ## Contributing
 
-We welcome contributions to improve the app. Please follow these steps to contribute:
-
-1. Fork the repository.
-2. Create a new branch for your feature or bug fix.
-3. Make the necessary changes and commit them.
-4. Push your changes to your forked repository.
-5. Submit a pull request detailing your changes.
+Pull requests welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, code style, and the commit convention.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).

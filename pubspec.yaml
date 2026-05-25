@@ -1,22 +1,64 @@
 name: remote
-description: "A new Flutter project."
+description: "Universal Smart TV remote — Samsung (WebSocket v2) and LG (WebOS), with discovery via UPnP and mDNS."
 publish_to: 'none'
-version: 0.1.0
+version: 0.2.0
 
 environment:
-  sdk: '>=3.3.3 <4.0.0'
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
 
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+
+  # Networking / protocols
   http: ^1.2.1
   upnp2: ^3.0.12
-  web_socket_channel: ^2.4.5
+  web_socket_channel: ^3.0.3
+  multicast_dns: ^0.3.2+6
+  wake_on_lan: ^4.0.0
+  connectivity_plus: ^6.1.0
+
+  # State management & DI
+  flutter_bloc: ^9.0.0
+  equatable: ^2.0.7
+  get_it: ^8.0.3
+
+  # Persistence
+  shared_preferences: ^2.3.5
+
+  # UX
+  flutter_svg: ^2.0.16
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^5.0.0
+  very_good_analysis: ^7.0.0
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.2
+  flutter_native_splash: ^2.4.4
 
 flutter:
   uses-material-design: true
+  generate: true
+  assets:
+    - assets/icons/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#0B1A3E"
+  image: assets/icons/splash.png
+  android_12:
+    color: "#0B1A3E"
+    image: assets/icons/splash.png
